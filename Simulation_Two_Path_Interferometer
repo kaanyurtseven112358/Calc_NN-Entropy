@@ -1,0 +1,49 @@
+import pennylane as qml
+import numpy as np
+
+# define the number of qubits and the depth of the quantum circuit
+num_qubits = 4
+depth = 2
+
+# define the quantum circuit
+dev = qml.device('default.qubit', wires=num_qubits)
+@qml.qnode(dev)
+def quantum_circuit(params):
+    for i in range(depth):
+        for j in range(num_qubits):
+            qml.RY(params[i, j], wires=j)
+            qml.RX(params[i, j + num_qubits], wires=j)
+    return qml.probs(wires=range(num_qubits))
+
+# define the classical neural network
+def classical_nn(params):
+    probs = quantum_circuit(params[0])
+    for i in range(1, 5):
+        probs = quantum_circuit(params[i])
+    return probs
+
+# define the von Neumann entropy function
+def von_neumann_entropy(probs):
+    entropy = -sum([p * np.log(p) for p in probs])
+    return entropy
+
+# define the cost function
+def cost(params):
+    entropies = []
+    for i in range(5):
+        probs = quantum_circuit(params[i])
+        entropies.append(von_neumann_entropy(probs))
+    return entropies
+
+# define the optimization algorithm
+opt = qml.GradientDescentOptimizer(stepsize=0.1)
+
+# set the initial parameters
+params = [np.random.uniform(0, 2*np.pi, (depth, 2*num_qubits)) for i in range(5)]
+
+# optimize the cost function
+for i in range(100):
+    params = opt.step(cost, params)
+
+# print the final entropies
+print(cost(params))
